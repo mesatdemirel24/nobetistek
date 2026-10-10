@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nöbet İstek Takvimi — medanestezi</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#eaf0f1; --ink:#12353d; --muted:#5a717a; --line:#d4e0e2; --card:#ffffff;
+  --teal:#0f766e; --teal-d:#0b5952; --coral:#e05252; --wknd:#f4f7f9;
+  --shadow:0 1px 3px rgba(20,35,46,.08),0 8px 24px rgba(20,35,46,.06);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.wrap{max-width:520px;margin:0 auto;padding:0 14px 48px}
+.back{display:inline-block;text-decoration:none;color:var(--muted);font-size:14px;font-weight:600;margin:16px 0 0}
+.back:hover{color:var(--teal)}
+header{position:sticky;top:0;background:var(--bg);padding:10px 0;z-index:5}
+.brand{display:flex;align-items:center;gap:10px}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--teal);box-shadow:0 0 0 4px rgba(15,118,110,.14)}
+.brand h1{font-size:18px;margin:0;letter-spacing:-.2px;font-weight:700}
+.tabs{display:flex;gap:6px;margin-top:12px;background:#e3e9ed;padding:4px;border-radius:12px}
+.tabs button{flex:1;border:0;background:transparent;padding:9px;border-radius:9px;font-weight:600;
+  font-size:14px;color:var(--muted);cursor:pointer}
+.tabs button.on{background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;
+  margin-top:14px;box-shadow:var(--shadow)}
+.card h2{font-size:14px;margin:0 0 12px;color:var(--muted);font-weight:700;letter-spacing:.2px;text-transform:uppercase}
+label.fld{display:block;font-size:13px;font-weight:600;color:var(--muted);margin:0 0 6px 2px}
+select,input[type=text],input[type=password],textarea{width:100%;padding:12px;border:1px solid var(--line);
+  border-radius:11px;font-size:16px;background:#fbfcfd;color:var(--ink);appearance:none;font-family:inherit}
+textarea{resize:vertical}
+select:focus,input:focus,textarea:focus{outline:2px solid rgba(15,118,110,.35);border-color:var(--teal)}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.dow{text-align:center;font-size:11px;font-weight:700;color:var(--muted);padding:2px 0}
+.cell{aspect-ratio:1/1;border:1px solid var(--line);border-radius:12px;background:#fbfcfd;
+  display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;
+  cursor:pointer;position:relative;user-select:none;transition:transform .05s}
+.cell.wknd{background:var(--wknd)}
+.cell.empty{border:0;background:transparent;cursor:default}
+.cell.off{background:var(--coral);border-color:var(--coral);color:#fff}
+.cell.off::after{content:"×";position:absolute;top:2px;right:6px;font-size:12px;opacity:.85}
+.cell:active{transform:scale(.94)}
+.legend{display:flex;gap:16px;align-items:center;margin-top:12px;font-size:13px;color:var(--muted)}
+.sw{width:16px;height:16px;border-radius:5px;display:inline-block;vertical-align:-3px;margin-right:6px}
+.bar{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(234,240,241,0),var(--bg) 34%);
+  padding:14px 0 4px;margin-top:14px}
+.count{font-size:14px;color:var(--muted);margin-bottom:8px;text-align:center}
+.count b{color:var(--coral)}
+button.primary{width:100%;border:0;background:var(--teal);color:#fff;font-size:16px;font-weight:700;
+  padding:15px;border-radius:13px;cursor:pointer;box-shadow:var(--shadow)}
+button.primary:disabled{background:#b6c2c8;box-shadow:none}
+button.primary:active:not(:disabled){background:var(--teal-d)}
+button.ghost{border:1px solid var(--line);background:#fff;color:var(--ink);font-weight:600;
+  padding:12px 16px;border-radius:11px;cursor:pointer;font-size:15px}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(30px);
+  background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;
+  opacity:0;pointer-events:none;transition:.28s;z-index:20;box-shadow:var(--shadow)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--coral)}
+.statrow{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 4px;
+  border-bottom:1px solid var(--line);font-size:15px}
+.statrow:last-child{border-bottom:0}
+.statrow .nmwrap{flex:1;min-width:0}
+.statrow .note{display:block;margin-top:3px;font-size:13px;color:var(--muted);white-space:pre-wrap;
+  background:#f7f9fa;border-left:3px solid var(--teal);padding:6px 9px;border-radius:6px}
+.pill{font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;flex:0 0 auto}
+.pill.ok{background:#e5f4f1;color:var(--teal-d)}
+.pill.no{background:#f2f5f7;color:var(--muted)}
+.tgl{position:relative;width:44px;height:26px;flex:0 0 auto}
+.tgl input{opacity:0;width:0;height:0}
+.tgl span{position:absolute;inset:0;background:#cdd7dd;border-radius:20px;transition:.2s;cursor:pointer}
+.tgl span::before{content:"";position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;
+  border-radius:50%;transition:.2s;box-shadow:0 1px 2px rgba(0,0,0,.25)}
+.tgl input:checked+span{background:var(--teal)}
+.tgl input:checked+span::before{transform:translateX(18px)}
+.mgrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)}
+.mgrow:last-child{border-bottom:0}
+.mgrow .nm{font-size:15px}.mgrow .nm small{display:block;color:var(--muted);font-size:12px;font-weight:600}
+.setup{background:#fff8e6;border:1px solid #f2e2b0;color:#7a5b00;border-radius:12px;padding:14px;font-size:14px;margin-top:14px}
+code{background:#eef2f5;padding:1px 6px;border-radius:6px;font-size:13px}
+.mut{color:var(--muted);font-size:13px;text-align:center;padding:18px 0}
+.rowflex{display:flex;gap:10px}
+.monthtag{display:inline-block;background:#e5f4f1;color:var(--teal-d);font-weight:700;font-size:13px;
+  padding:5px 12px;border-radius:20px;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- ===================== ERİŞİM KAPISI ===================== -->
+<div id="gate" style="position:fixed;inset:0;z-index:100;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;padding:20px">
+  <div style="max-width:380px;width:100%">
+    <div style="text-align:center;margin-bottom:18px">
+      <div style="display:inline-flex;width:48px;height:48px;border-radius:14px;background:var(--teal);
+        align-items:center;justify-content:center;color:#fff;font-size:22px">🔒</div>
+      <h1 style="font-size:20px;margin:14px 0 4px">Nöbet İstek Takvimi</h1>
+      <p style="color:var(--muted);font-size:14px;margin:0">Bu alan uzman hekimlere özeldir. Erişim kodunu girin.</p>
+    </div>
+    <div class="card" style="margin-top:0">
+      <label class="fld" for="gateCode">Erişim kodu</label>
+      <input type="password" id="gateCode" inputmode="text" placeholder="••••••"
+        onkeydown="if(event.key==='Enter')checkGate()">
+      <div style="height:10px"></div>
+      <button class="primary" onclick="checkGate()">Giriş</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none">
+  <a class="back" href="../">← Araçlar</a>
+  <header>
+    <div class="brand"><span class="dot"></span><h1>Nöbet İstek Takvimi</h1></div>
+    <div class="tabs">
+      <button id="tabDoc" class="on" onclick="setMode('doc')">Hekim</button>
+      <button id="tabAdm" onclick="setMode('adm')">Yönetici</button>
+    </div>
+  </header>
+
+  <div id="setupBox" class="setup" style="display:none">
+    Uygulama bağlanamadı. <code>SUPABASE_URL</code> ve <code>SUPABASE_ANON_KEY</code> alanlarını kontrol edin.
+  </div>
+
+  <!-- ===================== HEKİM ===================== -->
+  <section id="docView">
+    <div class="card">
+      <label class="fld" for="docSel">Adınız</label>
+      <select id="docSel"><option value="">Seçiniz…</option></select>
+      <div style="height:12px"></div>
+      <label class="fld">Dönem</label>
+      <div class="monthtag" id="monTag">—</div>
+    </div>
+
+    <div class="card" id="calCard" style="display:none">
+      <div class="grid" id="dowRow"></div>
+      <div class="grid" id="calGrid" style="margin-top:6px"></div>
+      <div class="legend">
+        <span><span class="sw" style="background:var(--coral)"></span>Nöbet istemiyorum</span>
+        <span><span class="sw" style="background:#fbfcfd;border:1px solid var(--line)"></span>Uygun</span>
+      </div>
+      <label class="fld" for="noteBox" style="margin-top:16px">Yönetici için not <span style="font-weight:500">(isteğe bağlı)</span></label>
+      <textarea id="noteBox" rows="3" placeholder="Belirtmek istediğiniz bir durum varsa yazın. Bu notu yalnızca yönetici görür."></textarea>
+      <div class="bar">
+        <div class="count">Seçilen istenmeyen gün: <b id="cnt">0</b></div>
+        <button class="primary" id="saveBtn" disabled onclick="saveDoc()">Kaydet</button>
+      </div>
+    </div>
+    <div id="docEmpty" class="mut">Başlamak için adınızı seçin.</div>
+  </section>
+
+  <!-- ===================== YÖNETİCİ ===================== -->
+  <section id="admView" style="display:none">
+    <div class="card" id="pinCard">
+      <label class="fld" for="pin">Yönetici PIN</label>
+      <input type="password" id="pin" inputmode="numeric" placeholder="••••" onkeydown="if(event.key==='Enter')checkPin()">
+      <div style="height:10px"></div>
+      <button class="primary" onclick="checkPin()">Gir</button>
+    </div>
+
+    <div id="admPanel" style="display:none">
+      <div class="card">
+        <h2>Ay seç ve dışa aktar</h2>
+        <label class="fld" for="aMon">Ay</label>
+        <select id="aMon"></select>
+        <div style="height:12px"></div>
+        <button class="primary" onclick="exportXlsx()">Excel indir (X formatı + notlar)</button>
+        <div class="mut" id="admSummary" style="padding:12px 0 0"></div>
+      </div>
+
+      <div class="card">
+        <h2>Doldurma durumu ve notlar</h2>
+        <div id="statusList"></div>
+      </div>
+
+      <div class="card">
+        <h2>Doktor ekle</h2>
+        <label class="fld" for="newDoc">Yeni hekim adı soyadı</label>
+        <div class="rowflex">
+          <input type="text" id="newDoc" placeholder="AD SOYAD" onkeydown="if(event.key==='Enter')addDoc()">
+          <button class="ghost" style="flex:0 0 auto" onclick="addDoc()">Ekle</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Aktif / Pasif hekimler</h2>
+        <div id="manageList"></div>
+      </div>
+    </div>
+  </section>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ================== AYARLAR ================== */
+const SUPABASE_URL = "https://kjcptythyfdbulvfyhci.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_UA2wjs97KO12lpFtI4s6GQ_MR1Owy4I";
+const ADMIN_PIN = "1234";                          // Yönetici PIN'i (değiştirin)
+const ACCESS_CODE = "anestezi2026";                // Uzmanlara verilecek ortak erişim kodu (DEĞİŞTİRİN)
+/* ============================================= */
+
+const MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const DOW=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"];
+let sb=null, doctors=[], selDays=new Set(), curDoc=null, DOC_YM=null;
+
+/* Liste boşsa otomatik yüklenecek hekimler */
+const SEED_ACTIVE=["AHMET KACIROĞLU","ALİ ANIL","AYÇA SAYAN","BAHİTTİN NAZLI","BANU OTLAR CAN",
+"BENGÜ DİKİCİ","BÜLENT YILDIZ","CANAN YILMAZ","DEFNE ÇİFTÇİOĞLU","DİDEM ALEMDAR","EBRU KARATAŞ",
+"EBUBEKİR ESEN","ERALP ÇEVİKKALP","HANDE GÜRBÜZ","İLKEN UĞUZ","İREM AYDOĞMUŞ","İREM GÖNÜL",
+"İSA KILIÇ","KURTBEY ANARAT","MEHTAP ZENGİ","MERİH EĞLEN","ESAT DEMİREL","MURAD KAYA",
+"MUSTAFA ABDUŞOĞLU","MUSTAFA ÇİFTÇİOĞLU","MUSTAFA SAVAŞ","MUSTAFA DİKİCİ","MÜRSEL EKİNCİ",
+"NESİBE DAŞDAN","SAKIP SAĞLIK","SEDA EĞİLMEZ","SELİM CAN YIRTIMCI","SİNEM ÖZPAR","ŞEYDA ARI",
+"SUZAN ADALI","ŞÜKRAN PEHLİVANOĞLU","TUTKU KARAMAN","YASEMİN DERELİ","ZEYNEP KARAMAN"];
+const SEED_INACTIVE=["AYŞENUR AKGÜN","MERVE ÇOBAN","LEVENT ÇETİN"];
+
+function toast(msg,err){const t=document.getElementById('toast');t.textContent=msg;
+  t.className='toast show'+(err?' err':'');setTimeout(()=>t.className='toast',2200);}
+function ready(){return SUPABASE_URL&&!SUPABASE_URL.includes("BURAYA")&&SUPABASE_ANON_KEY&&!SUPABASE_ANON_KEY.includes("BURAYA");}
+function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+function ymOf(y,m){return y+"-"+String(m+1).padStart(2,'0');}
+function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+function firstDow(y,m){return (new Date(y,m,1).getDay()+6)%7;} // Pzt=0
+function labelOf(y,m){return MONTHS[m]+" "+y;}
+
+/* Ay listesi üret: başlangıç offset'inden itibaren n ay */
+function monthList(startOffset,count){
+  const now=new Date(); const base=new Date(now.getFullYear(),now.getMonth()+startOffset,1);
+  const arr=[];
+  for(let i=0;i<count;i++){const d=new Date(base.getFullYear(),base.getMonth()+i,1);
+    arr.push({y:d.getFullYear(),m:d.getMonth()});}
+  return arr;
+}
+function fillMonthSelect(el,list,defaultIdx){
+  el.innerHTML='';
+  list.forEach((o,i)=>{el.innerHTML+=`<option value="${ymOf(o.y,o.m)}" ${i===defaultIdx?'selected':''}>${labelOf(o.y,o.m)}</option>`;});
+}
+function parseYM(ym){const [y,m]=ym.split('-').map(Number);return {y:y,m:m-1};}
+
+/* ---------- ERİŞİM KAPISI ---------- */
+function unlockApp(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('appWrap').style.display='';
+}
+function checkGate(){
+  const v=document.getElementById('gateCode').value.trim();
+  if(v===ACCESS_CODE){
+    try{localStorage.setItem('nobet_access','ok');}catch(e){}
+    unlockApp();
+  } else {
+    toast('Kod hatalı',1);
+  }
+}
+
+function setMode(mode){
+  document.getElementById('tabDoc').classList.toggle('on',mode==='doc');
+  document.getElementById('tabAdm').classList.toggle('on',mode==='adm');
+  document.getElementById('docView').style.display=mode==='doc'?'':'none';
+  document.getElementById('admView').style.display=mode==='adm'?'':'none';
+}
+
+/* ---------- HEKİM ---------- */
+async function loadDoctors(){
+  const {data,error}=await sb.from('doctors').select('*').order('sort_order');
+  if(error){toast('Hekimler yüklenemedi',1);return;}
+  doctors=data;
+  const sel=document.getElementById('docSel');
+  sel.innerHTML='<option value="">Seçiniz…</option>';
+  data.filter(d=>d.active).forEach(d=>sel.innerHTML+=`<option value="${d.id}">${esc(d.name)}</option>`);
+}
+async function ensureSeed(){
+  try{
+    const {count,error}=await sb.from('doctors').select('*',{count:'exact',head:true});
+    if(error) return;
+    if(count && count>0) return;
+    const rows=[];
+    SEED_ACTIVE.forEach((n,i)=>rows.push({name:n,active:true,sort_order:i+1}));
+    SEED_INACTIVE.forEach((n,i)=>rows.push({name:n,active:false,sort_order:SEED_ACTIVE.length+i+1}));
+    await sb.from('doctors').insert(rows);
+  }catch(e){}
+}
+function buildDow(el){el.innerHTML='';DOW.forEach(d=>el.innerHTML+=`<div class="dow">${d}</div>`);}
+
+async function renderCal(){
+  const docId=document.getElementById('docSel').value;
+  const ym=DOC_YM;
+  const card=document.getElementById('calCard'), empty=document.getElementById('docEmpty');
+  if(!docId||!ym){card.style.display='none';empty.style.display='';return;}
+  empty.style.display='none';card.style.display='';
+  const {y,m}=parseYM(ym);
+  buildDow(document.getElementById('dowRow'));
+  selDays=new Set(); curDoc=docId;
+  const {data}=await sb.from('submissions').select('days,note').eq('doctor_id',docId).eq('ym',ym).maybeSingle();
+  if(data&&Array.isArray(data.days)) data.days.forEach(d=>selDays.add(d));
+  document.getElementById('noteBox').value=(data&&data.note)?data.note:'';
+  const grid=document.getElementById('calGrid');grid.innerHTML='';
+  const off=firstDow(y,m), n=daysInMonth(y,m);
+  for(let i=0;i<off;i++){const e=document.createElement('div');e.className='cell empty';grid.appendChild(e);}
+  for(let d=1;d<=n;d++){
+    const wd=(new Date(y,m,d).getDay()+6)%7;
+    const c=document.createElement('div');
+    c.className='cell'+(wd>=5?' wknd':'')+(selDays.has(d)?' off':'');
+    c.textContent=d; c.onclick=()=>{if(selDays.has(d))selDays.delete(d);else selDays.add(d);
+      c.classList.toggle('off');updCnt();};
+    grid.appendChild(c);
+  }
+  updCnt();
+}
+function updCnt(){document.getElementById('cnt').textContent=selDays.size;
+  document.getElementById('saveBtn').disabled=!curDoc;}
+
+async function saveDoc(){
+  if(!curDoc)return;
+  const ym=DOC_YM;
+  const btn=document.getElementById('saveBtn');btn.disabled=true;btn.textContent='Kaydediliyor…';
+  const {error}=await sb.from('submissions').upsert(
+    {doctor_id:+curDoc,ym:ym,days:[...selDays].sort((a,b)=>a-b),
+     note:document.getElementById('noteBox').value.trim(),updated_at:new Date().toISOString()},
+    {onConflict:'doctor_id,ym'});
+  btn.textContent='Kaydet';btn.disabled=false;
+  if(error){toast('Kaydedilemedi',1);} else {toast('Kaydedildi ✓');}
+}
+
+/* ---------- YÖNETİCİ ---------- */
+function checkPin(){
+  if(document.getElementById('pin').value===ADMIN_PIN){
+    document.getElementById('pinCard').style.display='none';
+    document.getElementById('admPanel').style.display='';
+    refreshAdmin();
+  } else toast('PIN hatalı',1);
+}
+async function refreshAdmin(){await loadDoctors();renderStatus();renderManage();}
+
+async function getSubs(){
+  const ym=document.getElementById('aMon').value;
+  const {data}=await sb.from('submissions').select('doctor_id,days,note').eq('ym',ym);
+  const map={}; (data||[]).forEach(s=>map[s.doctor_id]={days:s.days||[],note:s.note||''}); return map;
+}
+async function renderStatus(){
+  const map=await getSubs(); const act=doctors.filter(d=>d.active);
+  const done=act.filter(d=>map[d.id]!==undefined).length;
+  document.getElementById('admSummary').textContent=`${act.length} aktif hekimden ${done} tanesi girdi, ${act.length-done} bekleniyor.`;
+  const list=document.getElementById('statusList');list.innerHTML='';
+  act.forEach(d=>{const s=map[d.id]; const ok=s!==undefined;
+    const note=(ok&&s.note)?`<span class="note">${esc(s.note)}</span>`:'';
+    list.innerHTML+=`<div class="statrow"><div class="nmwrap">${esc(d.name)}${note}</div>
+      <span class="pill ${ok?'ok':'no'}">${ok?('✓ '+s.days.length+' gün'):'bekleniyor'}</span></div>`;});
+}
+function renderManage(){
+  const list=document.getElementById('manageList');list.innerHTML='';
+  doctors.forEach(d=>{
+    list.innerHTML+=`<div class="mgrow"><span class="nm">${esc(d.name)}
+      <small>${d.active?'aktif':'pasif'}</small></span>
+      <label class="tgl"><input type="checkbox" ${d.active?'checked':''}
+        onchange="toggleDoc(${d.id},this.checked)"><span></span></label></div>`;});
+}
+async function toggleDoc(id,val){
+  const {error}=await sb.from('doctors').update({active:val}).eq('id',id);
+  if(error){toast('Güncellenemedi',1);return;}
+  toast(val?'Aktifleştirildi':'Pasife alındı'); refreshAdmin();
+}
+async function addDoc(){
+  const inp=document.getElementById('newDoc'); const name=inp.value.trim().toLocaleUpperCase('tr-TR');
+  if(!name){toast('İsim girin',1);return;}
+  const maxOrder=Math.max(0,...doctors.map(d=>d.sort_order||0));
+  const {error}=await sb.from('doctors').insert({name,active:true,sort_order:maxOrder+1});
+  if(error){toast(error.code==='23505'?'Bu isim zaten var':'Eklenemedi',1);return;}
+  inp.value='';toast('Eklendi ✓');refreshAdmin();
+}
+
+async function exportXlsx(){
+  const ym=document.getElementById('aMon').value; const {y,m}=parseYM(ym);
+  const map=await getSubs(); const act=doctors.filter(d=>d.active);
+  const n=daysInMonth(y,m);
+  const aoa=[];
+  aoa.push([`${MONTHS[m].toLocaleUpperCase('tr-TR')} ${y} UZMAN HEKİM NÖBET İSTEK LİSTESİ`]);
+  const header=['', 'HEKİM ADI SOYADI']; for(let d=1;d<=n;d++)header.push(d); header.push('NOT'); aoa.push(header);
+  act.forEach((doc,i)=>{
+    const s=map[doc.id]||{days:[],note:''}; const days=new Set(s.days);
+    const row=[i+1, doc.name];
+    for(let d=1;d<=n;d++)row.push(days.has(d)?'X':'');
+    row.push(s.note||''); aoa.push(row);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:5},{wch:22},...Array(n).fill({wch:3.2}),{wch:40}];
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'İstek');
+  XLSX.writeFile(wb,`nobet-istek-${ym}.xlsx`);
+  toast('Excel indirildi');
+}
+
+/* ---------- INIT ---------- */
+(function init(){
+  // Erişim kapısı: cihaz daha önce girdiyse hatırla
+  try{ if(localStorage.getItem('nobet_access')==='ok') unlockApp(); }catch(e){}
+  // Hekim: SADECE bir sonraki ay (sabit)
+  const nextM=monthList(1,1)[0];
+  DOC_YM=ymOf(nextM.y,nextM.m);
+  document.getElementById('monTag').textContent='📅 '+labelOf(nextM.y,nextM.m);
+  // Yönetici: önceki ay + bu ay + sonraki 6 ay, varsayılan = bir sonraki ay (index 2)
+  fillMonthSelect(document.getElementById('aMon'), monthList(-1,9), 2);
+  document.getElementById('docSel').addEventListener('change',renderCal);
+  document.getElementById('aMon').addEventListener('change',()=>{if(document.getElementById('admPanel').style.display!=='none')renderStatus();});
+  if(!ready()){document.getElementById('setupBox').style.display='';return;}
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  ensureSeed().then(loadDoctors);
+})();
+</script>
+</body>
+</html>
