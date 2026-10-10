@@ -91,27 +91,7 @@ code{background:#eef2f5;padding:1px 6px;border-radius:6px;font-size:13px}
 </head>
 <body>
 
-<!-- ===================== ERİŞİM KAPISI ===================== -->
-<div id="gate" style="position:fixed;inset:0;z-index:100;background:var(--bg);
-  display:flex;align-items:center;justify-content:center;padding:20px">
-  <div style="max-width:380px;width:100%">
-    <div style="text-align:center;margin-bottom:18px">
-      <div style="display:inline-flex;width:48px;height:48px;border-radius:14px;background:var(--teal);
-        align-items:center;justify-content:center;color:#fff;font-size:22px">🔒</div>
-      <h1 style="font-size:20px;margin:14px 0 4px">Nöbet İstek Takvimi</h1>
-      <p style="color:var(--muted);font-size:14px;margin:0">Bu alan uzman hekimlere özeldir. Erişim kodunu girin.</p>
-    </div>
-    <div class="card" style="margin-top:0">
-      <label class="fld" for="gateCode">Erişim kodu</label>
-      <input type="password" id="gateCode" inputmode="text" placeholder="••••••"
-        onkeydown="if(event.key==='Enter')checkGate()">
-      <div style="height:10px"></div>
-      <button class="primary" onclick="checkGate()">Giriş</button>
-    </div>
-  </div>
-</div>
-
-<div class="wrap" id="appWrap" style="display:none">
+<div class="wrap" id="appWrap">
   <a class="back" href="../">← Araçlar</a>
   <header>
     <div class="brand"><span class="dot"></span><h1>Nöbet İstek Takvimi</h1></div>
@@ -199,7 +179,6 @@ code{background:#eef2f5;padding:1px 6px;border-radius:6px;font-size:13px}
 const SUPABASE_URL = "https://kjcptythyfdbulvfyhci.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_UA2wjs97KO12lpFtI4s6GQ_MR1Owy4I";
 const ADMIN_PIN = "1234";                          // Yönetici PIN'i (değiştirin)
-const ACCESS_CODE = "anestezi2026";                // Uzmanlara verilecek ortak erişim kodu (DEĞİŞTİRİN)
 /* ============================================= */
 
 const MONTHS=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
@@ -238,21 +217,6 @@ function fillMonthSelect(el,list,defaultIdx){
   list.forEach((o,i)=>{el.innerHTML+=`<option value="${ymOf(o.y,o.m)}" ${i===defaultIdx?'selected':''}>${labelOf(o.y,o.m)}</option>`;});
 }
 function parseYM(ym){const [y,m]=ym.split('-').map(Number);return {y:y,m:m-1};}
-
-/* ---------- ERİŞİM KAPISI ---------- */
-function unlockApp(){
-  document.getElementById('gate').style.display='none';
-  document.getElementById('appWrap').style.display='';
-}
-function checkGate(){
-  const v=document.getElementById('gateCode').value.trim();
-  if(v===ACCESS_CODE){
-    try{localStorage.setItem('nobet_access','ok');}catch(e){}
-    unlockApp();
-  } else {
-    toast('Kod hatalı',1);
-  }
-}
 
 function setMode(mode){
   document.getElementById('tabDoc').classList.toggle('on',mode==='doc');
@@ -392,8 +356,6 @@ async function exportXlsx(){
 
 /* ---------- INIT ---------- */
 (function init(){
-  // Erişim kapısı: cihaz daha önce girdiyse hatırla
-  try{ if(localStorage.getItem('nobet_access')==='ok') unlockApp(); }catch(e){}
   // Hekim: SADECE bir sonraki ay (sabit)
   const nextM=monthList(1,1)[0];
   DOC_YM=ymOf(nextM.y,nextM.m);
